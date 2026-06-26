@@ -70,6 +70,27 @@ Per-Node Storage Engine:
     BG:    Compaction (K-way merge, tombstone GC, bounded SSTable count)
 ```
 
+## Diagram
+
+                                    +------------------+
+                                    |      Client      |
+                                    +---------+--------+
+                                            |
+                                    Consistent Hashing
+                                            |
+                        +-------------------+-------------------+
+                        |                   |                   |
+                    +-----v-----+       +-----v-----+       +-----v-----+
+                    |   Node 0  |       |   Node 1  |       |   Node 2  |
+                    |-----------|       |-----------|       |-----------|
+                    | WAL       |       | WAL       |       | WAL       |
+                    | MemTable  |       | MemTable  |       | MemTable  |
+                    | SSTables  |       | SSTables  |       | SSTables  |
+                    | Bloom     |       | Bloom     |       | Bloom     |
+                    +-----------+       +-----------+       +-----------+
+
+                            Prometheus <--------- Metrics ---------> Grafana
+
 ---
 
 ## Quick Start
