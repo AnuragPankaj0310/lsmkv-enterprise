@@ -16,10 +16,8 @@ Run with: python demo.py
 from __future__ import annotations
 
 import asyncio
-import sys
 import time
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from storage.engine import StorageEngine
 from distributed.ring import ConsistentHashRing
@@ -59,7 +57,7 @@ class ClusterDemo:
             self.engines.append(engine)
             print(f"  ✓ Started node{i} on {self.addrs[i]}")
         
-        print(f"\n[CLUSTER] 3 nodes running, RF=2")
+        print("\n[CLUSTER] 3 nodes running, RF=2")
     
     async def insert_data(self, num_keys: int = 1000) -> None:
         """Insert keys across the cluster."""

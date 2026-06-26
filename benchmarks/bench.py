@@ -23,6 +23,7 @@ Usage:
   python benchmarks/bench.py --ops 10000 --output results.json
 """
 from __future__ import annotations
+# ruff: noqa: E402
 
 from pathlib import Path
 import sys
@@ -36,12 +37,11 @@ import argparse
 import asyncio
 import json
 import random
-import statistics
 import string
 import time
-from typing import Any, Callable, Optional
+from typing import Optional
 
-from client.sdk import LsmkvClient, ClientError
+from client.sdk import LsmkvClient
 
 
 # ---------------------------------------------------------------------------

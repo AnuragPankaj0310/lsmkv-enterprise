@@ -13,7 +13,6 @@ from __future__ import annotations
 import asyncio
 import time
 import statistics
-from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from storage.engine import StorageEngine
@@ -339,7 +338,7 @@ async def run_all_benchmarks():
     # Benchmark 1b: SET throughput (scalability curve)
     print("\n[1b/6] Benchmarking SET throughput scalability...")
     scale_results = await benchmark_scalability([1000, 10000, 100000])
-    print(f"  Scalability results:")
+    print("  Scalability results:")
     for num_keys, metrics in scale_results.items():
         print(f"    {num_keys:>7,} keys: {metrics['throughput_keys_per_sec']:>10,.0f} keys/sec")
     

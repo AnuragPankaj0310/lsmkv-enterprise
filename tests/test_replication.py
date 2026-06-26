@@ -1,9 +1,7 @@
 """Replication module tests (unit-level, no live server)."""
 from __future__ import annotations
 
-import pytest
 
-from distributed.ring import ConsistentHashRing
 
 
 def test_replication_module_imports():

@@ -1,7 +1,6 @@
 """Tests for Compaction Engine — Phase 4."""
 from __future__ import annotations
 
-import pytest
 
 from storage.compaction import _kway_merge, SSTableRegistry
 from storage.memtable import MemTable

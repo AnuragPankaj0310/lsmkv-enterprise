@@ -15,11 +15,9 @@ Replication:
 from __future__ import annotations
 
 import asyncio
-from csv import writer
 import json
 import logging
 import signal
-from pathlib import Path
 from typing import Optional
 
 from network.protocol import encode_ok, encode_error, read_message, validate_command

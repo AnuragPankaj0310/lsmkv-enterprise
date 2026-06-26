@@ -34,15 +34,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
-import time
 from pathlib import Path
 from typing import Optional
 
 from storage.compaction import CompactionEngine, SSTableRegistry
 from storage.manifest import Manifest
 from storage.memtable import MemTable
-from storage.sstable import SSTable, SSTableWriter
+from storage.sstable import SSTableWriter
 from storage.wal import WAL
 
 log = logging.getLogger(__name__)

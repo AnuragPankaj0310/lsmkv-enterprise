@@ -1,7 +1,6 @@
 """Tests for ConsistentHashRing — Phase 5."""
 from __future__ import annotations
 
-import pytest
 
 from distributed.ring import ConsistentHashRing
 

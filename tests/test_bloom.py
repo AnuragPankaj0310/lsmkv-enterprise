@@ -1,7 +1,6 @@
 """Tests for BloomFilter — Phase 3."""
 from __future__ import annotations
 
-import pytest
 
 from storage.bloom import BloomFilter
 

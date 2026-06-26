@@ -169,13 +169,12 @@ class MetricsCollector:
 
     async def start_http_server(self, port: int) -> None:
         """Start Prometheus HTTP metrics endpoint and background update loop."""
-        import aiohttp
         from aiohttp import web
 
         app = web.Application()
 
         async def metrics_handler(request):
-            from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+            from prometheus_client import generate_latest
             self._refresh()
             return web.Response(
                 body=generate_latest(self._registry),

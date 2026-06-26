@@ -23,9 +23,10 @@ Command structures (Python dicts encoded as msgpack):
 from __future__ import annotations
 
 import struct
-from typing import Any
 
 import msgpack
+
+import asyncio
 
 _LENGTH_FMT = ">I"
 _LENGTH_SIZE = struct.calcsize(_LENGTH_FMT)

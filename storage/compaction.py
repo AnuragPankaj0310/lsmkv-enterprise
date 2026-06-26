@@ -27,7 +27,10 @@ import heapq
 import logging
 import time
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import TYPE_CHECKING, Iterator, Optional
+
+if TYPE_CHECKING:
+    from storage.manifest import Manifest
 
 from storage.sstable import SSTable, SSTableWriter
 
@@ -58,7 +61,6 @@ def _kway_merge(
 
     # Initialise heap with first entry from each iterator
     heap: list = []
-    iters_with_state = []
     for seq, it in iterators:
         try:
             key, val, exp, tomb = next(it)

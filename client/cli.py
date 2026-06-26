@@ -79,7 +79,7 @@ def get(ctx, key: str):
         try:
             value = await client.get(key)
             if value is None:
-                click.echo(f"(nil)")
+                click.echo("(nil)")
             else:
                 click.echo(value.decode("utf-8", errors="replace"))
         finally:

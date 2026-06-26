@@ -1,7 +1,6 @@
 """Tests for SSTable read/write — Phase 2."""
 from __future__ import annotations
 
-import pytest
 
 from storage.memtable import MemTable
 from storage.sstable import SSTable, SSTableWriter

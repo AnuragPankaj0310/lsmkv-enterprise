@@ -1,7 +1,6 @@
 """Tests for StorageEngine integration — Phase 1–4."""
 from __future__ import annotations
 
-import asyncio
 import pytest
 
 from storage.engine import StorageEngine
