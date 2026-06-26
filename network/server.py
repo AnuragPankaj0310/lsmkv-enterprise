@@ -24,6 +24,9 @@ from typing import Optional
 from network.protocol import encode_ok, encode_error, read_message, validate_command
 from storage.engine import StorageEngine
 from metrics.prometheus import MetricsCollector
+from distributed.ring import ConsistentHashRing
+from distributed.routing import RequestRouter
+from distributed.replication import send_request
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +50,8 @@ class LsmkvServer:
         l0_compaction_trigger: int = 4,
         compaction_interval: float = 30.0,
         replication_targets: Optional[list[str]] = None,
+        cluster_nodes: Optional[list[str]] = None,
+        node_address: Optional[str] = None,
         node_id: str = "node-1",
     ):
         self._host = host
@@ -55,6 +60,10 @@ class LsmkvServer:
         self._node_id = node_id
         self._client_tasks: set[asyncio.Task] = set()
         self._replication_targets = replication_targets or []
+        self._cluster_nodes = cluster_nodes or []
+        self._address = node_address or f"{host}:{port}"
+        self._ring = ConsistentHashRing(self._cluster_nodes or [self._address])
+        self._router = RequestRouter(self._ring)
 
         self._engine = StorageEngine(
             data_dir=data_dir,
@@ -64,6 +73,34 @@ class LsmkvServer:
         )
         self._metrics = MetricsCollector(engine=self._engine, node_id=node_id)
         self._connections: int = 0
+
+    async def _route_request(self, msg: dict) -> bytes:
+        """
+        Route client requests to the owning node.
+        """
+
+        cmd = msg["cmd"]
+
+        # Commands without a key are always local.
+        if cmd in {"PING", "METRICS", "REPLICATE"}:
+            return await self._dispatch(msg)
+
+        # Already forwarded -> execute locally.
+        if msg.get("forwarded", False):
+            return await self._dispatch(msg)
+
+        key = msg["key"]
+        owner = self._router.primary(key)
+
+        # We own the key.
+        if owner == self._address:
+            return await self._dispatch(msg)
+
+        forward_msg = dict(msg)
+        forward_msg["forwarded"] = True
+        forward_msg["origin"] = self._address
+
+        return await send_request(owner, forward_msg)
 
     # ------------------------------------------------------------------
     # Entry point
@@ -148,7 +185,7 @@ class LsmkvServer:
                     await writer.drain()
                     continue
 
-                response = await self._dispatch(msg)
+                response = await self._route_request(msg)
                 writer.write(response)
                 await writer.drain()
         except Exception as exc:
@@ -290,6 +327,8 @@ class LsmkvServer:
             l0_compaction_trigger=cfg.get("l0_compaction_trigger", 4),
             compaction_interval=cfg.get("compaction_interval_seconds", 30.0),
             replication_targets=replicas,
+            cluster_nodes=nodes,
+            node_address=nodes[node_index],
             node_id=f"node-{node_index}",
         )
 

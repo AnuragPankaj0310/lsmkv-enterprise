@@ -85,6 +85,8 @@ def validate_command(msg: dict) -> tuple[bool, str]:
     Validate an incoming command dict.
     Returns (is_valid, error_reason).
     """
+    msg.setdefault("forwarded", False)
+    msg.setdefault("origin", None)
     cmd = msg.get("cmd")
     if not cmd:
         return False, "Missing 'cmd' field"
