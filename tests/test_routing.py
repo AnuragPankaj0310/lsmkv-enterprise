@@ -105,3 +105,43 @@ def test_router_can_identify_non_owner():
         "localhost:7003",
     }
 
+
+def test_add_node():
+    ring = ConsistentHashRing(
+        [
+            "node0",
+            "node1",
+        ]
+    )
+
+    router = RequestRouter(ring)
+
+    router.add_node("node2")
+
+    owner = router.primary("hello")
+
+    assert owner in {
+        "node0",
+        "node1",
+        "node2",
+    }
+
+def test_remove_node():
+    ring = ConsistentHashRing(
+        [
+            "node0",
+            "node1",
+            "node2",
+        ]
+    )
+
+    router = RequestRouter(ring)
+
+    router.remove_node("node2")
+
+    owner = router.primary("hello")
+
+    assert owner in {
+        "node0",
+        "node1",
+    }

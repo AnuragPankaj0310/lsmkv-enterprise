@@ -30,3 +30,16 @@ class RequestRouter:
             key,
             self.replication_factor,
         )
+    
+    def add_node(self, address: str) -> None:
+        """
+        Add a node to the routing ring.
+        """
+        self.ring.add_node(address)
+
+
+    def remove_node(self, address: str) -> None:
+        """
+        Remove a node from the routing ring.
+        """
+        self.ring.remove_node(address)
