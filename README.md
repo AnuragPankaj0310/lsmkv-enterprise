@@ -193,7 +193,7 @@ The result is a compact yet feature-rich distributed storage system that demonst
 ## Clone the Repository
 
 ```bash
-git clone https://github.com/<your-username>/lsmkv.git
+git clone https://github.com/AnuragPankaj0310/lsmkv.git
 
 cd lsmkv
 ```
