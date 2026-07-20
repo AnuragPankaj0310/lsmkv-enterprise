@@ -1,0 +1,8 @@
+# Runtime-only dependencies for the KV node container.
+# Dev tools (pytest, mypy, ruff, coverage) are in requirements.dev.txt
+
+sortedcontainers==2.4.0
+msgpack==1.0.8
+click==8.1.7
+prometheus-client==0.20.0
+aiohttp==3.9.5

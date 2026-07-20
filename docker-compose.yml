@@ -1,0 +1,159 @@
+##############################################################################
+# docker-compose.yml — Distributed KV Store + Dashboard
+# Run from the repository root:
+#
+#   docker compose up --build          # full stack on http://localhost
+#   docker compose --profile sre up   # + Prometheus & Grafana
+#
+# PORT env var lets Railway/Render override the public port.
+##############################################################################
+
+services:
+  # ── KV Cluster Nodes ──────────────────────────────────────────────────────
+  # Build context is ./lsmkv because the node Dockerfile and source live there.
+  node0:
+    build:
+      context: ./lsmkv
+    image: lsmkv:latest
+    container_name: lsmkv-node0
+    environment:
+      LSMKV_NODE_INDEX: "0"
+    ports:
+      - "7001:7001"
+      - "9001:9001"
+    volumes:
+      - node0_data:/app/data/node0
+    networks:
+      - lsmkv_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost',7001),2); s.close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  node1:
+    image: lsmkv:latest
+    container_name: lsmkv-node1
+    environment:
+      LSMKV_NODE_INDEX: "1"
+    ports:
+      - "7002:7002"
+      - "9002:9002"
+    volumes:
+      - node1_data:/app/data/node1
+    networks:
+      - lsmkv_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost',7002),2); s.close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  node2:
+    image: lsmkv:latest
+    container_name: lsmkv-node2
+    environment:
+      LSMKV_NODE_INDEX: "2"
+    ports:
+      - "7003:7003"
+      - "9003:9003"
+    volumes:
+      - node2_data:/app/data/node2
+    networks:
+      - lsmkv_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost',7003),2); s.close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── FastAPI Backend ────────────────────────────────────────────────────────
+  # Context is repo root so the Dockerfile can COPY both lsmkv/ and dashboard/api/
+  api:
+    build:
+      context: .
+      dockerfile: dashboard/api/Dockerfile
+    container_name: lsmkv-api
+    environment:
+      PYTHONUNBUFFERED: "1"
+    networks:
+      - lsmkv_net
+    depends_on:
+      node0:
+        condition: service_healthy
+      node1:
+        condition: service_healthy
+      node2:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Nginx + React Dashboard ────────────────────────────────────────────────
+  # Single public entry point:  /  → React SPA
+  #                             /api/* → FastAPI
+  #                             /ws/*  → WebSocket
+  # PORT defaults to 80; set PORT=8080 on Railway/Render if needed.
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/frontend/Dockerfile
+    container_name: lsmkv-dashboard
+    ports:
+      - "${PORT:-80}:80"
+    networks:
+      - lsmkv_net
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Optional SRE Tooling  (docker compose --profile sre up) ───────────────
+  prometheus:
+    profiles: [sre]
+    image: prom/prometheus:v2.52.0
+    container_name: lsmkv-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./lsmkv/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - lsmkv_net
+    depends_on: [node0, node1, node2]
+    restart: unless-stopped
+
+  grafana:
+    profiles: [sre]
+    image: grafana/grafana:10.4.0
+    container_name: lsmkv-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "lsmkv"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - lsmkv_net
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+volumes:
+  node0_data:
+  node1_data:
+  node2_data:
+  grafana_data:
+
+networks:
+  lsmkv_net:
+    driver: bridge

@@ -1,0 +1,16 @@
+# Exclude dev artifacts from the lsmkv/ node build context
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.venv
+venv
+data/
+tests/
+benchmarks/
+docs/
+grafana/
+*.md
+.github/
