@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useCluster } from "../../context/ClusterContext";
+import { formatNodeName } from "../../utils/nodeFormat";
 
 interface Packet {
   id: number;
@@ -164,8 +165,8 @@ export function PacketFlow({ nodeNames }: PacketFlowProps) {
               opacity={isDown ? 0.4 : 1}
             />
             <text x={pos.x} y={pos.y} textAnchor="middle" dominantBaseline="middle"
-              fill={hex} fontSize={11} fontWeight="bold">
-              {isDown ? "✕" : name}
+              fill={hex} fontSize={10} fontWeight="bold">
+              {isDown ? "✕" : formatNodeName(name)}
             </text>
             <text x={pos.x} y={pos.y + 14} textAnchor="middle"
               fill="#71717a" fontSize={8}>

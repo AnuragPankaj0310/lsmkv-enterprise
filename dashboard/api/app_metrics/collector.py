@@ -160,10 +160,14 @@ class MetricsCollector:
         w = window_seconds if window_seconds is not None else self._window._window
         qps = round(n / min(elapsed, w), 2)
 
-        # Percentile latencies — sort the latency list
-        latencies = sorted(r.latency_ms for r in records)
+        # Percentile latencies — only from SUCCESSFUL operations.
+        # Failed / timed-out ops have latency ≈ timeout (2000 ms) which
+        # would completely skew the histogram; count them in error_rate only.
+        latencies = sorted(r.latency_ms for r in records if r.ok)
 
         def _pct(p: float) -> float:
+            if not latencies:
+                return 0.0
             idx = int(p * len(latencies))
             idx = min(idx, len(latencies) - 1)
             return round(latencies[idx], 2)
@@ -198,9 +202,12 @@ class MetricsCollector:
         elapsed = max(newest - oldest, 0.001)
         w = window_seconds if window_seconds is not None else self._window._window
         qps = round(n / min(elapsed, w), 2)
-        latencies = sorted(r.latency_ms for r in records)
+        # Only successful ops contribute to latency percentiles
+        latencies = sorted(r.latency_ms for r in records if r.ok)
 
         def _pct(p: float) -> float:
+            if not latencies:
+                return 0.0
             idx = min(int(p * len(latencies)), len(latencies) - 1)
             return round(latencies[idx], 2)
 

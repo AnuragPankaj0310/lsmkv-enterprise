@@ -1,5 +1,6 @@
 import type { ReplicationStatus } from "../../api/live";
 import { useCluster } from "../../context/ClusterContext";
+import { formatNodeName } from "../../utils/nodeFormat";
 
 interface LagBarProps { ms: number; hex: string; infinite?: boolean }
 export function LagBar({ ms, hex, infinite }: LagBarProps) {
@@ -68,7 +69,7 @@ export function ReplicaStatus({ data, lagValues }: ReplicaStatusProps) {
           <div key={n.id} className="flex items-center gap-4">
             <div className="flex items-center gap-2 w-28">
               <span className="h-3 w-3 rounded-full" style={{ backgroundColor: isDown ? "#52525b" : hex }} />
-              <span className="text-sm font-mono text-zinc-300">{n.name}</span>
+              <span className="text-sm font-mono text-zinc-300" title={n.name}>{formatNodeName(n.name)}</span>
             </div>
 
             <span className={`w-16 text-center rounded-full text-[10px] font-bold px-2 py-0.5 ${

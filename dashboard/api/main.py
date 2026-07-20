@@ -938,7 +938,7 @@ async def get_replication() -> dict:
 
         replicas.append({
             "id": idx,
-            "name": addr.split(":")[0],
+            "name": addr.split(":")[0].split(".")[0],   # "node0" (strips .railway.internal etc.)
             "addr": addr,
             "role": "primary" if idx == 0 else "replica",
             "lag_ms": lag,

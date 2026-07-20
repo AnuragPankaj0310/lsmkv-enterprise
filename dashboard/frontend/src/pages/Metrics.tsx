@@ -17,6 +17,7 @@ import { useCluster } from "../context/ClusterContext";
 import { COLOR_HEX } from "../utils/ringConstants";
 import { useMetricsWS, sumNodeMetric, avgNodeMetric } from "../hooks/useMetricsWS";
 import LiveBadge from "../components/LiveBadge";
+import { formatNodeName } from "../utils/nodeFormat";
 
 const HISTORY_LEN = 30;
 
@@ -79,7 +80,7 @@ function MetricCard({ icon, label, value, unit, data, color, sub, isLive, unavai
         )}
         {unavailable && (
           <span className="text-[9px] font-bold text-zinc-500 bg-zinc-900 border border-zinc-700 rounded-full px-1.5 py-0.5 tracking-widest">
-            NOT EXPORTED
+            N/A
           </span>
         )}
       </div>
@@ -116,7 +117,7 @@ function NodeRow({ name, metrics, color, state }: {
       isDown ? "border-red-900/60 bg-red-950/10" : "border-zinc-800 bg-zinc-900/30"
     }`}>
       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-      <span className="text-sm font-mono font-bold text-white w-16">{name}</span>
+      <span className="text-sm font-mono font-bold text-white w-20" title={name}>{formatNodeName(name)}</span>
       <span
         className="text-[10px] font-bold rounded-full px-2 py-0.5 border tracking-widest w-24 text-center"
         style={{ color: statusColor, borderColor: statusColor + "40", backgroundColor: statusColor + "10" }}
@@ -327,7 +328,7 @@ export default function Metrics() {
                   <div key={name} className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 space-y-2">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                      <span className="text-xs font-bold text-zinc-300 font-mono">{name}</span>
+                      <span className="text-xs font-bold text-zinc-300 font-mono" title={name}>{formatNodeName(name)}</span>
                     </div>
                     {(["p50_ms", "p95_ms", "p99_ms"] as const).map(k => {
                       const label = k === "p50_ms" ? "P50" : k === "p95_ms" ? "P95" : "P99";
