@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -r requirements.prod.txt
 COPY . .
 
 # Data volume (WAL + SSTables)
-VOLUME ["/app/data"]
+# VOLUME ["/app/data"]
 
 # Default: node 0 on port 7001
 ENV LSMKV_NODE_INDEX=0
