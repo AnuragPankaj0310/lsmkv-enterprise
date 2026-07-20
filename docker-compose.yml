@@ -82,6 +82,9 @@ services:
     container_name: lsmkv-api
     environment:
       PYTHONUNBUFFERED: "1"
+      # Local node addresses for Docker Compose — override with LSMKV_NODES
+      # env var on Railway to point at private-networking hostnames.
+      LSMKV_NODES: "node0:7001,node1:7002,node2:7003"
     networks:
       - lsmkv_net
     depends_on:
@@ -109,6 +112,10 @@ services:
       context: .
       dockerfile: dashboard/frontend/Dockerfile
     container_name: lsmkv-dashboard
+    environment:
+      # envsubst renders nginx.conf from this at container startup.
+      # Railway: set API_UPSTREAM=<api-service>.railway.internal:8000
+      API_UPSTREAM: "api:8000"
     ports:
       - "${PORT:-80}:80"
     networks:

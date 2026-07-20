@@ -19,8 +19,13 @@ COPY dashboard/api/ .
 
 EXPOSE 8000
 
-# Health endpoint at /health — probed by Docker and Nginx
-HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=5 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+# Default port — Railway overrides this via the PORT env var.
+# Setting it here ensures private-networking callers always find the API on 8000
+# unless Railway explicitly changes it.
+ENV PORT=8000
 
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Health endpoint at /health — probed by Docker and Railway
+HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=5 \
+  CMD sh -c "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:${PORT}/health')\""
+
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]

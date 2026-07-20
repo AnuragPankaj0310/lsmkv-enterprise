@@ -28,12 +28,16 @@ FROM nginx:1.27-alpine AS server
 # Remove default Nginx placeholder config
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Standalone nginx.conf lives in deployment/ at repo root
-COPY deployment/nginx.conf /etc/nginx/conf.d/app.conf
+# nginx.conf uses ${API_UPSTREAM} which envsubst fills in at startup.
+# Storing it as a template so the raw file is never used directly.
+COPY deployment/nginx.conf /etc/nginx/conf.d/app.conf.template
 
 # Compiled React app from Stage 1
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Render the nginx template at startup, substituting only ${API_UPSTREAM}.
+# Other nginx variables ($host, $remote_addr, etc.) are left untouched
+# because envsubst only replaces the braces-form variable we specify.
+CMD ["/bin/sh", "-c", "envsubst '${API_UPSTREAM}' < /etc/nginx/conf.d/app.conf.template > /etc/nginx/conf.d/app.conf && nginx -g 'daemon off;'"]

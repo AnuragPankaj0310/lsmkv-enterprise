@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import signal
 from typing import Optional
 
@@ -562,6 +563,13 @@ class LsmkvServer:
     ) -> "LsmkvServer":
         with open(config_path) as f:
             cfg = json.load(f)
+
+        # LSMKV_NODES overrides the node list so the same image works in
+        # Docker Compose (node0:7001) and on Railway (node0.railway.internal:7001).
+        # Format: "host1:port1,host2:port2,host3:port3"
+        env_nodes = os.environ.get("LSMKV_NODES", "").strip()
+        if env_nodes:
+            cfg["nodes"] = [n.strip() for n in env_nodes.split(",") if n.strip()]
 
         nodes: list[str] = cfg.get("nodes", [])
         host = cfg.get("server_host", "0.0.0.0")

@@ -101,8 +101,27 @@ _CONFIG_PATH = _ROOT / "config.json"
 
 
 def _load_config() -> dict:
-    with open(_CONFIG_PATH) as f:
-        return json.load(f)
+    """
+    Load config.json, then overlay with environment variables so the same
+    image works in Docker Compose (uses Docker service names) and on Railway
+    (uses Railway private-networking hostnames).
+
+    LSMKV_NODES  – comma-separated list of node addresses that overrides the
+                   "nodes" list in config.json.
+                   Example: "node0.railway.internal:7001,node1.railway.internal:7002,node2.railway.internal:7003"
+    """
+    try:
+        with open(_CONFIG_PATH) as f:
+            cfg = json.load(f)
+    except FileNotFoundError:
+        cfg = {}
+
+    # Allow environment variable to override node addresses (Railway / cloud)
+    env_nodes = os.environ.get("LSMKV_NODES", "").strip()
+    if env_nodes:
+        cfg["nodes"] = [n.strip() for n in env_nodes.split(",") if n.strip()]
+
+    return cfg
 
 
 # ---------------------------------------------------------------------------
@@ -498,7 +517,7 @@ async def get_nodes() -> list[dict]:
         result.append({
             "id": idx,
             "addr": addr,
-            "host": "localhost",
+            "host": host,  # actual hostname extracted from addr (cloud-aware)
             "port": int(port),
             "status": status,
             "key_count": key_count,
@@ -1282,7 +1301,7 @@ async def _kv_command_no_key(cmd: str) -> dict:
             from network.protocol import encode, read_message
             host, port_str = addr.rsplit(":", 1)
             r, w = await asyncio.wait_for(
-                asyncio.open_connection("localhost", int(port_str)), timeout=2.0
+                asyncio.open_connection(host, int(port_str)), timeout=2.0
             )
             w.write(encode({"cmd": cmd}))
             await w.drain()
