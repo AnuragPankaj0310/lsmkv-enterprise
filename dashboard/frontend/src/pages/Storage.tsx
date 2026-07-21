@@ -24,6 +24,7 @@ import { triggerRefresh } from "../store/syncEngine";
 import LiveBadge from "../components/LiveBadge";
 import { useLoadRunning } from "../store/operationsStore";
 import { startFlush, startCompact } from "../services/backgroundOps";
+import { formatNodeName, formatMb } from "../utils/nodeFormat";
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 const NODE_COLORS: Record<number, { color: string; hex: string }> = {
@@ -335,7 +336,10 @@ export default function Storage() {
                   animation: isNodeDown ? "none" : "pulse 2s infinite",
                 }}
               />
-              {n.name}
+              {/* Tab label — friendly name, full hostname in tooltip */}
+              <span title={`${n.name} · ${n.id !== undefined ? 'port ' + (7001 + n.id) : ''}`}>
+                {formatNodeName(n.name)}
+              </span>
               {isNodeDown && <span className="text-[10px] text-red-400 font-bold">DEAD</span>}
             </button>
           );
@@ -362,15 +366,16 @@ export default function Storage() {
         <StatPill icon="🧠" label="Mem Usage"
           value={memPctDisplay}
           alert={isMemAlert}
-          sub={node.memtable.size != null ? `${node.memtable.size.toFixed(1)} MB` : undefined}
+          sub={node.memtable.size != null ? formatMb(node.memtable.size) : undefined}
         />
-        <StatPill icon="✍" label="WAL Size"
-          value={node.wal.size != null ? `${node.wal.size.toFixed(2)} MB` : null}
+        <StatPill icon="✍" label="WAL Est."
+          value={node.wal.size != null ? formatMb(node.wal.size) : null}
           unavailable={node.wal.size === null}
-          sub={node.wal.segments != null ? `${node.wal.segments} segments` : undefined}
+          sub={node.wal.size != null ? "~60% of disk" : "not tracked"}
         />
-        <StatPill icon="💿" label="Disk"
-          value={node.totalDisk != null ? `${node.totalDisk.toFixed(1)} MB` : null}
+        <StatPill icon="💿" label="Disk (total)"
+          value={node.totalDisk != null ? formatMb(node.totalDisk) : null}
+          sub="WAL + SSTables"
         />
         <StatPill icon="📄" label="SSTables" value={String(totalSSTables)} />
         <StatPill icon="🔄" label="Compactions"
@@ -389,7 +394,7 @@ export default function Storage() {
         <div className="flex items-center gap-3 mb-6">
           <div className="h-8 w-1.5 rounded-full" style={{ backgroundColor: node.hex }} />
           <div>
-            <h2 className="text-base font-bold text-white">LSM-Tree — {node.name}</h2>
+            <h2 className="text-base font-bold text-white">LSM-Tree — {formatNodeName(node.name)}</h2>
             <p className="text-xs text-zinc-500">
               Write path: Client → WAL → MemTable → Flush → L0 → Compact → L1/L2/L3
             </p>

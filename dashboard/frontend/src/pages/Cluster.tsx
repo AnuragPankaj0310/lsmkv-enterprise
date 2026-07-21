@@ -7,6 +7,7 @@ import type { NodeInfo, ClusterInfo } from "../api/cluster";
 import { useClusterStore } from "../store/clusterStore";
 import LiveBadge from "../components/LiveBadge";
 import { useOperations } from "../store/operationsStore";
+import { formatMb } from "../utils/nodeFormat";
 
 const HEX    = ["#60a5fa", "#4ade80", "#facc15", "#c084fc", "#f472b6", "#2dd4bf"];
 const COLORS  = ["bg-blue-400",  "bg-green-400", "bg-yellow-400", "bg-purple-400", "bg-pink-400", "bg-teal-400"];
@@ -76,18 +77,17 @@ export default function Cluster() {
   const downCount    = runtimeNodes.filter((n) => n.state === "UNREACHABLE").length;
 
   // Merge runtime node chaos state with real API data
-  // If API data is not loaded yet fall back to estimated values
   const displayNodes = runtimeNodes.map((rn, i) => {
-    const apiNode = nodeInfos.find((ni) => ni.id === rn.id) ?? nodeInfos[i];
+    const apiNode = nodeInfos.find((ni) => ni.id === rn.id);
     return {
       id: rn.id,
       state: rn.state,
       host: apiNode?.host ?? "localhost",
       port: apiNode?.port ?? (7001 + rn.id),
-      key_count: apiNode?.key_count ?? Math.round(100 / runtimeNodes.length),
-      memtable_mb: apiNode?.memtable_mb ?? (4 + i * 3.5),
-      wal_mb: apiNode?.wal_mb ?? (1.2 + i * 0.8),
-      disk_mb: apiNode?.disk_mb ?? (24 + i * 12),
+      key_count: apiNode?.key_count ?? 0,
+      memtable_mb: apiNode?.memtable_mb ?? 0,
+      wal_mb:      apiNode?.wal_mb      ?? 0,
+      disk_mb:     apiNode?.disk_mb     ?? 0,
       // RTT matrix: approximate, real values need a pinger
       rtt: runtimeNodes.map((_, j) => (i === j ? 0 : 3.5 + ((i + j) % 3) * 0.5)),
       metricsLive: (apiNode as any)?.metrics_live ?? false,
@@ -145,7 +145,7 @@ export default function Cluster() {
           },
           {
             icon: "💿", label: "Cluster Storage",
-            value: `${totalDisk.toFixed(1)} MB`,
+            value: formatMb(totalDisk),
             sub: loading ? "Fetching…" : "SSTables + WAL + MemTable",
           },
         ].map((s) => (
@@ -204,13 +204,13 @@ export default function Cluster() {
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between">
                   <span className="text-zinc-500">MemTable</span>
-                  <span className="font-mono">{isDown ? "—" : `${node.memtable_mb.toFixed(2)} MB`}</span>
+                  <span className="font-mono">{isDown ? "—" : formatMb(node.memtable_mb)}</span>
                 </div>
                 <CpuBar pct={isDown ? 0 : (node.memtable_mb / 64) * 100} color={hexColor} />
 
                 <div className="flex justify-between mt-2">
                   <span className="text-zinc-500">WAL</span>
-                  <span className="font-mono">{isDown ? "—" : `${node.wal_mb.toFixed(2)} MB`}</span>
+                  <span className="font-mono">{isDown ? "—" : formatMb(node.wal_mb)}</span>
                 </div>
                 <CpuBar pct={isDown ? 0 : (node.wal_mb / 4) * 100} color={hexColor} />
               </div>
@@ -218,7 +218,7 @@ export default function Cluster() {
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 {[
                   { label: "Keys",    value: isDown ? "—" : node.key_count },
-                  { label: "Disk",    value: isDown ? "—" : `${node.disk_mb.toFixed(1)} MB` },
+                  { label: "Disk",    value: isDown ? "—" : formatMb(node.disk_mb) },
                   { label: "Port",    value: `:${node.port}` },
                 ].map((s) => (
                   <div key={s.label} className="rounded-lg bg-zinc-800/60 p-2">

@@ -2,6 +2,7 @@ import type { RingNode, RingKey } from "../../types/hashRing";
 
 import { resolveOwnerIndex } from "../../utils/ringGeometry";
 import { useCluster } from "../../context/ClusterContext";
+import { formatNodeName } from "../../utils/nodeFormat";
 
 
 export interface StatsProps {
@@ -96,9 +97,7 @@ export default function Stats({ nodes, keys, replicationFactor, virtualNodes }: 
           Key Distribution
         </p>
         {distribution.map((d) => {
-          const label = d.node.addr
-            ? d.node.addr.split(":")[0]
-            : `Node-${d.node.id}`;
+          const label = d.node.addr ? formatNodeName(d.node.addr) : `Node-${d.node.id}`;
           const pct = d.isDown ? 0 : Math.round((d.count / maxCount) * 100);
 
           const colorMap: Record<number, string> = {

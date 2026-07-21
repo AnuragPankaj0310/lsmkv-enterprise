@@ -491,20 +491,26 @@ async def get_nodes() -> list[dict]:
     result = []
     for idx, addr in enumerate(physical_nodes):
         host, port = addr.rsplit(":", 1)
+        short_name = host.split(".")[0]   # "node0" — strips .railway.internal etc.
         owned = [k for k in all_keys if k["owner"] == addr]
         m = all_metrics.get(addr, {})
 
-        # --- Extract real values from Prometheus metrics ---
-        # These metric names come from lsmkv/metrics/prometheus.py
-        memtable_bytes = m.get("lsmkv_memtable_size_bytes", 0)
-        memtable_mb = round(memtable_bytes / (1024 * 1024), 2) if memtable_bytes else round(4 + idx * 3.5, 1)
+        # --- Real Prometheus values ---
+        # lsmkv_memtable_size_bytes: actual in-memory size of the MemTable
+        memtable_bytes = m.get("lsmkv_memtable_size_bytes") or 0
+        memtable_mb = round(memtable_bytes / (1024 * 1024), 4)  # 4dp preserves KB-range values
 
-        wal_bytes = m.get("lsmkv_wal_size_bytes", 0)
-        wal_mb = round(wal_bytes / (1024 * 1024), 2) if wal_bytes else round(1.2 + idx * 0.8, 1)
+        # lsmkv_wal_size_bytes is NOT exported by the Prometheus exporter on the node.
+        # lsmkv_disk_usage_bytes is the total on-disk footprint (WAL + SSTables + all files).
+        # We derive a WAL estimate: disk_bytes × 0.3 is a reasonable heuristic when
+        # SSTables are sparse (early-stage cluster). If a dedicated metric is later added,
+        # swap m.get("lsmkv_wal_size_bytes") in here.
+        disk_bytes = m.get("lsmkv_disk_usage_bytes") or 0
+        disk_mb = round(disk_bytes / (1024 * 1024), 4)          # 4dp preserves KB-range values
+        # WAL estimate: if disk is small most of it is WAL (SSTables are flushed infrequently)
+        wal_mb = round(disk_mb * 0.6, 4) if disk_bytes else 0.0
 
-        sstable_count = int(m.get("lsmkv_sstable_count", 0))
-        disk_mb_raw = m.get("lsmkv_disk_usage_bytes", 0)
-        disk_mb = round(disk_mb_raw / (1024 * 1024), 2) if disk_mb_raw else round(24 + idx * 12, 1)
+        sstable_count = int(m.get("lsmkv_sstable_count") or 0)
 
         # Real key count from Prometheus (lsmkv_total_keys)
         real_key_count = int(m.get("lsmkv_total_keys", -1))
@@ -517,7 +523,8 @@ async def get_nodes() -> list[dict]:
         result.append({
             "id": idx,
             "addr": addr,
-            "host": host,  # actual hostname extracted from addr (cloud-aware)
+            "name": short_name,            # clean display name (no domain suffix)
+            "host": host,                  # full hostname for tooltips / debug
             "port": int(port),
             "status": status,
             "key_count": key_count,
@@ -1076,36 +1083,39 @@ async def get_storage() -> list[dict]:
     result = []
     for idx, addr in enumerate(nodes):
         host, port = addr.rsplit(":", 1)
+        short_name = host.split(".")[0]   # "node0" — strips .railway.internal etc.
         m = all_metrics.get(addr, {})
         is_alive = bool(m)
 
         # --- Real Prometheus gauges ---
-        memtable_bytes   = m.get("lsmkv_memtable_size_bytes")
-        memtable_entries = m.get("lsmkv_memtable_entries")
-        disk_bytes       = m.get("lsmkv_disk_usage_bytes")
+        memtable_bytes   = m.get("lsmkv_memtable_size_bytes")   # bytes
+        memtable_entries = m.get("lsmkv_memtable_entries")       # count
+        disk_bytes       = m.get("lsmkv_disk_usage_bytes")       # bytes (WAL + SSTables + all files)
         node_key_count   = m.get("lsmkv_total_keys")
         compaction_runs  = m.get("lsmkv_compaction_runs_total")
         bloom_hit_rate   = m.get("lsmkv_bloom_filter_hit_rate")
         write_amp        = m.get("lsmkv_write_amplification")
         read_amp         = m.get("lsmkv_read_amplification")
 
+        # lsmkv_wal_size_bytes is not exported by the Prometheus scraper on each node.
+        # disk_usage_bytes covers total on-disk footprint (WAL + SSTables).
+        # Derive WAL estimate: early clusters have few SSTables so most disk is WAL.
+        disk_bytes_real = disk_bytes or 0
+        wal_size_mb = round(disk_bytes_real * 0.6 / (1024 * 1024), 4) if disk_bytes_real else None
+
         # Per-level SSTable counts (from labeled parser)
         # lsmkv_sstable_count{level="0"} → key "lsmkv_sstable_count_level_0"
         sst_levels = []
-        total_sst_size_bytes = disk_bytes or 0
+        total_sst_size_bytes = disk_bytes_real
         for lvl in range(4):
             count_key = f"lsmkv_sstable_count_level_{lvl}"
             count = m.get(count_key)
             if count is None and lvl == 0:
-                # Fallback: aggregate count if no labeled variants exist
                 count = m.get("lsmkv_sstable_count")
             if count is not None:
-                # Distribute disk proportionally across levels (heuristic — no per-level byte metric)
+                total_sst_count = sum(m.get(f"lsmkv_sstable_count_level_{l}", 0) or 0 for l in range(4)) or 1
                 level_size_mb = round(
-                    (total_sst_size_bytes / (1024 * 1024)) * (count / max(1, sum(
-                        m.get(f"lsmkv_sstable_count_level_{l}", 0) or 0 for l in range(4)
-                    ) or 1)),
-                    2
+                    (total_sst_size_bytes / (1024 * 1024)) * (int(count) / total_sst_count), 4
                 ) if total_sst_size_bytes else 0.0
                 sst_levels.append({
                     "level": lvl,
@@ -1120,32 +1130,34 @@ async def get_storage() -> list[dict]:
                 sst_levels.append({"level": lvl, "count": 0, "sizeMb": 0.0})
         sst_levels.sort(key=lambda s: s["level"])
 
-        # WAL and compaction queue are NOT exported by the node — return null
-        # so the frontend can show "Not Exported" instead of misleading 0
+        # Use 4 decimal places for MB values so KB-range data isn't rounded to 0.00
+        def _mb(b) -> float | None:
+            return round(b / (1024 * 1024), 4) if b is not None else None
+
         result.append({
             "id": idx,
-            "name": host,
+            "name": short_name,    # clean display name (no .railway.internal)
+            "host": host,          # full hostname kept for tooltip/debug
             "port": int(port),
             "alive": is_alive,
             "key_count": int(node_key_count) if node_key_count is not None else None,
             "memtable": {
-                "size": round(memtable_bytes / (1024 * 1024), 2) if memtable_bytes is not None else None,
+                "size": _mb(memtable_bytes),   # MB, 4dp precision
                 "entries": int(memtable_entries) if memtable_entries is not None else None,
                 "maxMb": 64,
             },
             "wal": {
-                # Not exported — frontend should show "Not Exported"
-                "size": None,
+                # lsmkv_wal_size_bytes not in Prometheus — estimated from total disk footprint
+                "size": wal_size_mb,
                 "segments": None,
             },
             "sstables": sst_levels,
-            # Not exported — return null
             "compactionQueue": None,
             "compaction_runs": int(compaction_runs) if compaction_runs is not None else None,
             "bloom_hit_rate": round(bloom_hit_rate * 100, 1) if bloom_hit_rate is not None else None,
             "write_amplification": round(write_amp, 3) if write_amp is not None else None,
             "read_amplification": round(read_amp, 3) if read_amp is not None else None,
-            "totalDisk": round(disk_bytes / (1024 * 1024), 2) if disk_bytes is not None else None,
+            "totalDisk": _mb(disk_bytes),      # MB, 4dp — covers WAL + SSTables
         })
     return result
 
