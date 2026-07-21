@@ -2,7 +2,7 @@
 
 A production-grade distributed key-value store built from scratch, with a live monitoring dashboard. Designed for systems-design interviews.
 
-[![Deploy on Railway](https://railway.app/button.svg)]([https://railway.app/new/github?repo=https://github.com/YOUR_USERNAME/YOUR_REPO](https://comfortable-light-production-84e9.up.railway.app))
+[![Deploy on Railway](https://railway.app/button.svg)](https://comfortable-light-production-84e9.up.railway.app/)
 
 ---
 
